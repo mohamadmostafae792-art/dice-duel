@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DICE DUEL</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101827;color:#f4f7fb;font-family:Tahoma,Arial,sans-serif}
+main{max-width:520px;margin:auto;padding:22px}
+.card{background:#1c293b;border:1px solid #34445b;border-radius:18px;padding:18px;margin:14px 0}
+h1{text-align:center}
+.muted{color:#aab8ca;text-align:center;font-size:13px}
+.balance{text-align:center;font-size:34px;color:#77e0b5}
+button,input{width:100%;padding:14px;border:0;border-radius:12px;font-size:16px;margin-top:10px}
+button{background:#55c99b;color:#10251e;font-weight:bold}
+button.secondary{background:#33445d;color:white}
+input{background:#101827;color:white;border:1px solid #40516a}
+.dice{font-size:56px;text-align:center;margin:14px}
+.result{text-align:center;color:#ffd479}
+</style>
+</head>
+<body>
+<main>
+<h1>🎲 DICE DUEL</h1>
+<p class="muted">نبرد دو نفره تاس</p>
+
+<section class="card">
+<div class="muted">موجودی امتیاز آزمایشی</div>
+<div class="balance" id="balance">—</div>
+<button id="refresh" class="secondary">به‌روزرسانی موجودی</button>
+</section>
+
+<section class="card">
+<h3>ساخت اتاق خصوصی</h3>
+<input id="stake" type="number" min="10" max="10000" value="100">
+<button id="create">ساخت اتاق بازی</button>
+<div class="result" id="created"></div>
+</section>
+
+<section class="card">
+<h3>ورود به اتاق دوست</h3>
+<input id="gameid" placeholder="شناسه اتاق">
+<button id="join">پیوستن و انداختن تاس</button>
+<div class="dice" id="dice">🎲 ⚔️ 🎲</div>
+<div class="result" id="result"></div>
+</section>
+
+<p class="muted">نسخه آزمایشی؛ امتیازها مجازی هستند.</p>
+</main>
+
+<script>
+const tg=window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+const headers={'Content-Type':'application/json'};
+if(tg?.initData)
+headers['X-Telegram-Init-Data']=tg.initData;
+
+async function api(path,opts={}){
+const r=await fetch(path,{
+...opts,
+headers:{...headers,...opts.headers}
+});
+const d=await r.json();
+if(!r.ok)throw new Error(d.detail||'خطا');
+return d;
+}
+
+async function refresh(){
+try{
+const d=await api('/api/me');
+document.getElementById('balance').textContent=
+d.balance.toLocaleString('fa-IR');
+}catch(e){
+document.getElementById('result').textContent=e.message;
+}
+}
+
+document.getElementById('refresh').onclick=refresh;
+
+document.getElementById('create').onclick=async()=>{
+try{
+const d=await api('/api/games',{
+method:'POST',
+body:JSON.stringify({
+stake:Number(document.getElementById('stake').value)
+})
+});
+document.getElementById('created').textContent=
+'شناسه اتاق: '+d.game_id;
+document.getElementById('gameid').value=d.game_id;
+refresh();
+}catch(e){
+document.getElementById('created').textContent=e.message;
+}
+};
+
+document.getElementById('join').onclick=async()=>{
+try{
+const id=document.getElementById('gameid').value.trim();
+const d=await api('/api/games/join',{
+method:'POST',
+body:JSON.stringify({game_id:id})
+});
+document.getElementById('dice').textContent=
+'🎲 '+d.dice[0]+' | '+d.dice[1]+' 🎲';
+document.getElementById('result').textContent=
+d.status==='draw'?'مساوی! امتیازها برگشت داده شدند.':
+'برنده: '+d.winner_id+' جایزه: '+d.prize;
+refresh();
+}catch(e){
+document.getElementById('result').textContent=e.message;
+}
+};
+
+refresh();
+</script>
+</body>
+</html>
